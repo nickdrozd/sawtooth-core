@@ -273,6 +273,7 @@ then
     }
 
     build_python() {
+        docker_build $top_dir/docker/sawtooth-dev-python docker/ sawtooth-lisp-tp
         docker_build $top_dir/docker/sawtooth-dev-python docker/ sawtooth-dev-python
         docker_build $top_dir/docker/sawtooth-dev-python docker/ sawtooth-rest-api
         docker_build $top_dir/docker/sawtooth-dev-python docker/ sawtooth-settings-tp

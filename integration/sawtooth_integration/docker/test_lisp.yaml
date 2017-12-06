@@ -1,0 +1,78 @@
+version: "2.1"
+
+services:
+
+  settings-tp:
+    image: sawtooth-settings-tp:$ISOLATION_ID
+    volumes:
+      - $SAWTOOTH_CORE:/project/sawtooth-core
+    expose:
+      - 4004
+    depends_on:
+      - validator
+    command: settings-tp -vv -C tcp://validator:4004
+    stop_signal: SIGKILL
+
+  validator:
+    image: sawtooth-validator:$ISOLATION_ID
+    volumes:
+      - $SAWTOOTH_CORE:/project/sawtooth-core
+    expose:
+      - 4004
+      - 8800
+    command: "bash -c \"\
+        sawadm keygen && \
+        sawset genesis \
+          -k /etc/sawtooth/keys/validator.priv \
+          -o config-genesis.batch && \
+        sawadm genesis config-genesis.batch && \
+        sawtooth-validator -v \
+            --endpoint tcp://validator:8800 \
+            --bind component:tcp://eth0:4004 \
+            --bind network:tcp://eth0:8800 \
+    \""
+    stop_signal: SIGKILL
+
+  rest-api:
+    image: sawtooth-rest-api:$ISOLATION_ID
+    volumes:
+      - $SAWTOOTH_CORE:/project/sawtooth-core
+    expose:
+      - 4004
+      - 8008
+    depends_on:
+      - validator
+    command: sawtooth-rest-api -v --connect tcp://validator:4004 --bind rest-api:8080
+    stop_signal: SIGKILL
+
+  lisp-tp:
+    image: sawtooth-lisp-tp:$ISOLATION_ID
+    volumes:
+      - $SAWTOOTH_CORE:/project/sawtooth-core
+    expose:
+      - 4004
+    depends_on:
+      - validator
+    command: lisp-tp tcp://validator:4004
+    stop_signal: SIGKILL
+
+  test-lisp:
+    image: sawtooth-dev-python:$ISOLATION_ID
+    volumes:
+      - $SAWTOOTH_CORE:/project/sawtooth-core
+    expose:
+      - 8080
+    depends_on:
+      - validator
+      - rest-api
+    command: nose2-3
+        -c /project/sawtooth-core/integration/sawtooth_integration/nose2.cfg
+        -v
+        -s /project/sawtooth-core/integration/sawtooth_integration/tests
+        test_lisp.TestLisp
+    stop_signal: SIGKILL
+    environment:
+      PYTHONPATH: "/project/sawtooth-core/sdk/python:\
+        /project/sawtooth-core/families/lisp:\
+        /project/sawtooth-core/integration:\
+        /project/sawtooth-core/signing"
